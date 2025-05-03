@@ -1,6 +1,7 @@
 
 import React, { useState } from "react";
-import logo from "../public/NHTapp_logo.png";
+
+
 
 const AppHeader = () => (
   <header className="text-center py-4 bg-blue-600 text-white text-xl font-bold rounded-lg shadow-md mb-4 flex flex-col items-center">
