@@ -1,6 +1,10 @@
 
 import React, { useState, useEffect } from "react";
 import { AppHeader, TDEECalculator, ExportPDFModal } from "./AppHeader";
+import LogEntry from "./LogEntry";
+import LogViewer from "./LogViewer";
+import Charts from "./Charts";
+import ProgressGallery from "./ProgressGallery";
 
 function App() {
   const [user, setUser] = useState("default");
@@ -12,62 +16,72 @@ function App() {
   useEffect(() => {
     const saved = localStorage.getItem(`healthEntries_${user}`);
     setEntries(saved ? JSON.parse(saved) : []);
+    const savedTDEE = localStorage.getItem(`tdeeTarget_${user}`);
+    setTdeeTarget(savedTDEE ? parseInt(savedTDEE) : null);
   }, [user]);
 
   const renderDashboard = () => {
-    if (entries.length === 0) {
-      return <p className="text-center">No data available for dashboard.</p>;
-    }
-
+    if (entries.length === 0) return <p className="text-center">No data yet.</p>;
     const avg = (key) => {
-      const valid = entries.filter(e => !isNaN(parseFloat(e[key])));
-      const total = valid.reduce((sum, cur) => sum + parseFloat(cur[key] || 0), 0);
-      return (total / valid.length).toFixed(1);
+      const values = entries.map(e => parseFloat(e[key])).filter(v => !isNaN(v));
+      const sum = values.reduce((acc, v) => acc + v, 0);
+      return (sum / values.length).toFixed(1);
     };
-
     return (
-      <main className="max-w-md mx-auto bg-white p-4 rounded-xl shadow-lg space-y-3">
-        <h2 className="text-xl font-semibold text-center">Weekly Averages</h2>
-        <p><strong>Weight:</strong> {avg("weight")} lbs</p>
-        <p><strong>Calories:</strong> {avg("calories")} kcal</p>
-        <p><strong>Protein:</strong> {avg("protein")} g</p>
-        <p><strong>Carbs:</strong> {avg("carbs")} g</p>
-        <p><strong>Fats:</strong> {avg("fats")} g</p>
-        <p><strong>Sleep:</strong> {avg("sleep")} hrs</p>
-        <p><strong>Pain Level:</strong> {avg("pain")}/10</p>
-        <p><strong>Mood:</strong> {avg("mood")}/5</p>
-        <button
-          className="mt-4 w-full bg-green-600 text-white py-2 px-4 rounded-lg shadow hover:bg-green-700 transition"
-          onClick={() => setShowExportModal(true)}
-        >
-          📤 Export to PDF
-        </button>
-        {showExportModal && (
-          <ExportPDFModal entries={entries} onClose={() => setShowExportModal(false)} />
-        )}
-      </main>
+      <div className="space-y-2">
+        <p><strong>Avg Weight:</strong> {avg("weight")} lbs</p>
+        <p><strong>Avg Calories:</strong> {avg("calories")} kcal</p>
+        <p><strong>TDEE:</strong> {tdeeTarget || "Not set"} kcal</p>
+      </div>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 text-gray-900">
+    <div className="min-h-screen p-4 bg-gray-100">
       <AppHeader />
       <div className="max-w-md mx-auto mb-4">
-        <label className="block mb-1 font-semibold">Current User:</label>
         <input
-          className="w-full p-2 border rounded-lg"
+          className="w-full p-2 border rounded"
           value={user}
           onChange={(e) => setUser(e.target.value.trim() || "default")}
-          placeholder="Enter your name or ID"
+          placeholder="Enter your username"
         />
       </div>
-      <nav className="flex justify-center gap-4 mb-4">
-        <button className={`px-4 py-2 rounded ${view === "dashboard" ? "bg-blue-600 text-white" : "bg-white border"}`} onClick={() => setView("dashboard")}>Dashboard</button>
-        <button className={`px-4 py-2 rounded ${view === "tdee" ? "bg-blue-600 text-white" : "bg-white border"}`} onClick={() => setView("tdee")}>TDEE</button>
-      </nav>
+      <div className="flex justify-center gap-2 mb-4 flex-wrap">
+        {["dashboard", "log", "entries", "charts", "gallery", "tdee"].map(tab => (
+          <button
+            key={tab}
+            className={`px-4 py-2 rounded ${view === tab ? "bg-blue-600 text-white" : "bg-white border"}`}
+            onClick={() => setView(tab)}
+          >
+            {tab === "log" ? "New Entry" :
+             tab === "entries" ? "Log" :
+             tab[0].toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
+      </div>
 
       {view === "dashboard" && renderDashboard()}
-      {view === "tdee" && <TDEECalculator onSetTDEE={(cal) => setTdeeTarget(cal)} />}
+      {view === "log" && <LogEntry user={user} onSave={(updated) => setEntries(updated)} />}
+      {view === "entries" && (
+        <>
+          <div className="flex justify-end max-w-md mx-auto mb-2">
+            <button onClick={() => setShowExportModal(true)} className="text-sm text-white bg-green-600 px-3 py-1 rounded hover:bg-green-700">📤 Export</button>
+          </div>
+          <LogViewer entries={entries} user={user} setEntries={setEntries} />
+          {showExportModal && (
+            <ExportPDFModal entries={entries} onClose={() => setShowExportModal(false)} />
+          )}
+        </>
+      )}
+      {view === "charts" && <Charts entries={entries} tdee={tdeeTarget} />}
+      {view === "gallery" && <ProgressGallery user={user} />}
+      {view === "tdee" && (
+        <TDEECalculator onSetTDEE={(cal) => {
+          setTdeeTarget(cal);
+          localStorage.setItem(`tdeeTarget_${user}`, cal);
+        }} />
+      )}
     </div>
   );
 }
